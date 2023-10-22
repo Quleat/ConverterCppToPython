@@ -55,6 +55,7 @@ string Converter::Convert(string in){
             //Add to the container of some kind
         }
     }
+    return "NONEE";
 }
 
 #endif // CONVERTERCTOP_CPP

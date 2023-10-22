@@ -10,8 +10,8 @@ using namespace std;
 //Base (interface) class for expressions
 class expressionObj{
 public:
-    virtual void load(string input);
-    virtual string produce();
+     void load(string input); //I want to make them virtual, but cann't :(
+     string produce();
 };
 
 //Class for translating variables and literals (Doing nothing)
