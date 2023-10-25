@@ -1,5 +1,9 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
+#include "converterctop.h"
+#include <sstream>
+
+using namespace std;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,3 +17,13 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+
+void MainWindow::on_pushButton_clicked()
+{
+    QString text = ui->textEdit->toPlainText();
+    string str = text.toStdString();
+    Converter conv;
+    stringstream stream = conv.Convert(str);
+    QString output(stream.str().c_str());
+    ui->textEdit_2->setText(output);
+}
