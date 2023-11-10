@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Translate to human language</string>
+     <string>Translate to Python</string>
     </property>
    </widget>
    <widget class="QTextEdit" name="textEdit">

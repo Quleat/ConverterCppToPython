@@ -5,10 +5,23 @@
 #include<string>
 #include<exception>
 #include<vector>
+#include<map>
+
 
 using namespace std;
 
-class emptyExpression : exception{
+enum class ioType {input, output};
+
+enum class exprType {varExpr, nullExpr, ioExpr, /*TO be finished:*/ initExpr, mathExpr, logicExpr, cicleExpr,
+                      ifExpr, methodExpr, /*?*/ methodInvokeExpr};
+typedef pair<string, exprType> p;
+
+class unhandledExprException : exception{
+public:
+    char const* what() const;
+};
+
+class emptyExprException : exception{
 public:
     char const* what() const;
 };
@@ -20,17 +33,17 @@ public:
 };
 
 //Class for translating variables and literals (Doing nothing)
-class obj : public expressionObj {
+class varExpression : public expressionObj {
     string value;
 public:
-    obj(string in);
-    obj(const obj& right);
+    varExpression(string in);
+    varExpression(const varExpression& right);
     void load(string input);
     string produce();
 };
 
 //Class for things that do not have representation in python
-class nullObj : public expressionObj{
+class nullExpression : public expressionObj{
 public:
     string produce(){return "";}
 };
@@ -47,12 +60,13 @@ public:
 
 //HUGE class for identifying expressions
 class Converter{
+    static map<string, exprType> keyWords;
 public:
     static bool isTrash(string in);
     static bool isIO(string in);
 
-    static expressionObj *ConvertObj(string in);
-    static stringstream transformExprs(vector<expressionObj*> &v);
+    static expressionObj *ConvertExpr(string in);
+    static stringstream transformExprsToStr(vector<expressionObj*> &v);
     static stringstream Convert(string in);
 };
 

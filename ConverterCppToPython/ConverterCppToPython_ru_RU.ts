@@ -10,7 +10,8 @@
     </message>
     <message>
         <location filename="mainwindow.ui" line="27"/>
-        <source>Translate to human language</source>
+        <source>Translate to Python</source>
+        <oldsource>Translate to human language</oldsource>
         <translation type="unfinished"></translation>
     </message>
     <message>

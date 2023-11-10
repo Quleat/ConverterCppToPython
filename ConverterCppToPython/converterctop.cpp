@@ -6,18 +6,35 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <string.h>
+#include <stdio.h>
+#include <map>
+
+//<emptyExcpetion>
+const char* emptyExprException::what() const{
+    static const char msg[] = "Empty exception was created!";
+    return msg;
+}
+//<unhandledExprException>
+const char* unhandledExprException::what() const{
+    static const char msg[] = "Unhandled expression!!";
+    return msg;
+}
+
 
 //<obj>
-obj::obj(string in){
+varExpression::varExpression(string in){
+    if(in.empty())
+        throw emptyExprException();
     value = in;
 }
-obj::obj(const obj& right){
+varExpression::varExpression(const varExpression& right){
     value = right.value;
 }
-void obj::load(string in){
+void varExpression::load(string in){
     value = in;
 }
-string obj::produce(){
+string varExpression::produce(){
     if(value.find(';') != string::npos){
         value.erase(value.find(';'));
     }
@@ -29,10 +46,15 @@ string obj::produce(){
 
 //<ioExpression>
 ioExpression::ioExpression(expressionObj *o, string m){
+    if(o == nullptr || m.empty())
+        throw emptyExprException();
     object = o;
     method = m;
 }
 ioExpression::ioExpression(string input){
+    if(input.empty())
+        throw emptyExprException();
+
     string subExpr;
     if(input.find("cin") != string::npos){
         method = "input";
@@ -43,7 +65,7 @@ ioExpression::ioExpression(string input){
         subExpr = input.substr(input.find("<<")+3);
     }
     Converter converter;
-    object = converter.ConvertObj(subExpr);
+    object = converter.ConvertExpr(subExpr);
 }
 string ioExpression::produce(){
     stringstream result;
@@ -62,6 +84,29 @@ string ioExpression::produce(){
 
 
 //<Converter>
+map<string, exprType> Converter::keyWords = {
+    {"=", exprType::initExpr},
+    {"+", exprType::mathExpr},
+    {"-", exprType::mathExpr},
+    {"*", exprType::mathExpr},
+    {"/", exprType::mathExpr},
+    {"%", exprType::mathExpr},
+    {">>", exprType::ioExpr},
+    {"<<", exprType::ioExpr},
+    {"&&", exprType::logicExpr},
+    {"||", exprType::logicExpr},
+    {"!", exprType::logicExpr},
+    {"for", exprType::cicleExpr},
+    {"while", exprType::cicleExpr},
+    {"do", exprType::cicleExpr},
+    {"if", exprType::ifExpr},
+    /*TRASH*/
+    {"#include<iostream>", exprType::nullExpr},
+    {"#int main(){", exprType::nullExpr},
+    {"}", exprType::nullExpr}
+
+};
+
 //Check if unnesessary construction for python
 bool Converter::isTrash(string in){
     auto ptr = min(in.find("#"), in.find("using"));
@@ -86,16 +131,37 @@ bool Converter::isIO(string in){
 }
 
 //Convert line or a certain string part
-expressionObj *Converter::ConvertObj(string in){
-    if(isTrash(in))
-        return new nullObj;
-    else if(isIO(in))
-        return new ioExpression(in);
-    else //We assume that it is a variable or const then
-        return new obj(in);
+expressionObj *Converter::ConvertExpr(string in){
+    if(in.empty())
+        return new nullExpression();
+    char delims[] = ";() ";
+    char *TRASH = NULL;
+    char *token = strtok_s(const_cast<char*>(in.c_str()), delims, &TRASH);
+    exprType type = exprType::varExpr;
+    while(token != NULL){
+        string temp = token;
+        if(keyWords.count(temp)){
+            type = keyWords[temp];
+            break;
+        }
+        token = strtok_s(NULL, delims, &TRASH);
+    }
+    switch(type){
+    case exprType::varExpr:
+        return new varExpression(token);
+    case exprType::nullExpr:
+        return new nullExpression();
+    case exprType::ioExpr:
+        return new ioExpression(token);
+    default:
+        throw unhandledExprException();
+    }
+    //it never reaches this point anyway
+    return nullptr;
 }
 
-stringstream Converter::transformExprs(vector<expressionObj*> &exprs){
+//Transforming expressions to strings!
+stringstream Converter::transformExprsToStr(vector<expressionObj*> &exprs){
     stringstream stream;
     for(int i = 0; i < exprs.size(); i++){
         stream << exprs[i]->produce();
@@ -115,14 +181,13 @@ stringstream Converter::Convert(string in){
     }
     for(int i = 0; i < tokens.size(); i++){
         temp = tokens[i];
-        exprs.push_back(ConvertObj(temp));
+        exprs.push_back(ConvertExpr(temp));
     }
 
-    stream = transformExprs(exprs);
+    stream = transformExprsToStr(exprs);
 
     return stream;
 }
 //END <Converter>
-
 
 #endif // CONVERTERCTOP_CPP
