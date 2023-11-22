@@ -23,7 +23,7 @@ void MainWindow::on_pushButton_clicked()
     QString text = ui->textEdit->toPlainText();
     string str = text.toStdString();
     Converter conv;
-    stringstream stream = conv.Convert(str);
+    stringstream stream = conv.ConvertInner(str);
     QString output(stream.str().c_str());
     ui->textEdit_2->setText(output);
 }

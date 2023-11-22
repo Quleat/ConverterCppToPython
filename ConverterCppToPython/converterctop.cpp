@@ -10,6 +10,27 @@
 #include <stdio.h>
 #include <map>
 
+vector<string> parse(string in, string seps){
+    vector<string> res;
+    string cpyForStrTok = in;
+
+    char *delims = new char[seps.size()];
+    strcpy_s(delims, (seps.size()*sizeof(char)), seps.c_str());
+    char *TRASH = NULL;
+    char *token = strtok_s(const_cast<char*>(cpyForStrTok.c_str()), delims, &TRASH);
+
+    while(token != NULL){
+        res.push_back(token);
+        token = strtok_s(NULL, delims, &TRASH);
+    }
+
+    delete [] delims;
+    delete TRASH;
+    delete token;
+
+    return res;
+}
+
 //<emptyExcpetion>
 const char* emptyExprException::what() const{
     static const char msg[] = "Empty exception was created!";
@@ -21,8 +42,7 @@ const char* unhandledExprException::what() const{
     return msg;
 }
 
-
-//<obj>
+//<varExpression>
 varExpression::varExpression(string in){
     if(in.empty())
         throw emptyExprException();
@@ -40,7 +60,7 @@ string varExpression::produce(){
     }
     return value;
 }
-//end<obj>
+//end<varExpression>
 
 
 
@@ -83,61 +103,116 @@ string ioExpression::produce(){
 
 
 
+//<initExpression>
+initExpression::initExpression(string in){
+    size_t begOfName = in.find(' ') + 1;
+    left = in.substr(begOfName, in.find('=') - begOfName);
+    string r = in.substr(in.find('=')+1);
+
+    Converter converter;
+    right = converter.ConvertExpr(r);
+}
+string initExpression::produce(){
+    string res = left + "=" + right->produce();
+    return res;
+}
+//END<initExpression>
+
+
+
+//<mathExpression>
+mathExpression::mathExpression(string in) : equation(in)
+{ }
+string mathExpression::produce(){
+    return equation;
+}
+//END<math<Expression>
+
+vector<pair<string, string>> logicExpression::logToLog={
+    {"false", "False"},
+    {"true", "True"},
+    {"&&", "and"},
+    {"||", "or"},
+    {"!", "not"},
+    {"^", "^"}
+};
+//<logicExpression>
+logicExpression::logicExpression(string in){
+    for(int i = 0; i < logToLog.size(); i++){
+        size_t index = in.find(logToLog[i].first);
+        if(index != string::npos){
+            in.erase(index, logToLog[i].first.length());
+            in.insert(index, logToLog[i].second);
+            i = 0;
+        }
+    }
+    equation = in;
+}
+string logicExpression::produce(){
+    return equation;
+}
+//END<logicExpresssion
+
+
+
+//<codeBlock>
+
+//end<codeBlock>
+
+
+
 //<Converter>
 map<string, exprType> Converter::keyWords = {
     {"=", exprType::initExpr},
+
     {"+", exprType::mathExpr},
     {"-", exprType::mathExpr},
     {"*", exprType::mathExpr},
     {"/", exprType::mathExpr},
     {"%", exprType::mathExpr},
+
     {">>", exprType::ioExpr},
     {"<<", exprType::ioExpr},
+    {"cin", exprType::ioExpr},
+    {"cout", exprType::ioExpr},
+
+    {"false", exprType::logicExpr},
+    {"true", exprType::logicExpr},
     {"&&", exprType::logicExpr},
     {"||", exprType::logicExpr},
     {"!", exprType::logicExpr},
+    {"^", exprType::logicExpr},
+
     {"for", exprType::cicleExpr},
     {"while", exprType::cicleExpr},
     {"do", exprType::cicleExpr},
-    {"if", exprType::ifExpr},
-    /*TRASH*/
-    {"#include<iostream>", exprType::nullExpr},
-    {"#int main(){", exprType::nullExpr},
-    {"}", exprType::nullExpr}
 
+    {"if", exprType::ifExpr},
+
+    /*TRASH*/
+    {"using", exprType::nullExpr},
+    {"include", exprType::nullExpr},
 };
 
-//Check if unnesessary construction for python
-bool Converter::isTrash(string in){
-    auto ptr = min(in.find("#"), in.find("using"));
-    if(in[0] == '#' || ptr != string::npos){    //string::npos is max ULL
-        return true;
-    }
-    ptr = min(in.find("int main"), in.find('}'));
-    if(ptr != string::npos){
-        return true;
-    }
-    else
-        return false;
-}
-
-//Check if it is an input/output
-bool Converter::isIO(string in){
-    auto ptr = min(in.find(">>"), in.find("<<"));
-    if(ptr != string::npos)
-        return true;
-    else
-        return false;
-}
+vector<string> Converter::types ={
+    "double", "int", "float", "bool", "void", "stirng"
+};
 
 //Convert line or a certain string part
 expressionObj *Converter::ConvertExpr(string in){
     if(in.empty())
         return new nullExpression();
-    char delims[] = ";() ";
+
+    string cpyForStrTok = in;
+    char delims[] = ";() <>#";
     char *TRASH = NULL;
-    char *token = strtok_s(const_cast<char*>(in.c_str()), delims, &TRASH);
+    char *token = strtok_s(const_cast<char*>(cpyForStrTok.c_str()), delims, &TRASH);
+
     exprType type = exprType::varExpr;
+    if(token != NULL)
+        type = exprType::varExpr;
+    else
+        type = exprType::nullExpr;
     while(token != NULL){
         string temp = token;
         if(keyWords.count(temp)){
@@ -146,13 +221,20 @@ expressionObj *Converter::ConvertExpr(string in){
         }
         token = strtok_s(NULL, delims, &TRASH);
     }
+
     switch(type){
     case exprType::varExpr:
-        return new varExpression(token);
+        return new varExpression(in);
     case exprType::nullExpr:
         return new nullExpression();
     case exprType::ioExpr:
-        return new ioExpression(token);
+        return new ioExpression(in);
+    case exprType::initExpr:
+        return new initExpression(in);
+    case exprType::mathExpr:
+        return new mathExpression(in);
+    case exprType::logicExpr:
+        return new logicExpression(in);
     default:
         throw unhandledExprException();
     }
@@ -164,27 +246,31 @@ expressionObj *Converter::ConvertExpr(string in){
 stringstream Converter::transformExprsToStr(vector<expressionObj*> &exprs){
     stringstream stream;
     for(int i = 0; i < exprs.size(); i++){
-        stream << exprs[i]->produce();
+        string produced = exprs[i]->produce();
+        if(produced.empty())
+            continue;
+        stream << produced << '\n';
     }
     return stream;
 }
 
-//Method for a code conversion
-stringstream Converter::Convert(string in){
-    vector<expressionObj*> exprs;
-
-    vector<string> tokens;
+//Method for converting methods (and everything global in the code)
+stringstream Converter::ConvertOuter(string in ){
     stringstream stream(in);
-    string temp;
-    while(getline(stream, temp, '\n')){
-        tokens.push_back(temp);
-    }
-    for(int i = 0; i < tokens.size(); i++){
-        temp = tokens[i];
-        exprs.push_back(ConvertExpr(temp));
-    }
+    return stream;
+}
 
-    stream = transformExprsToStr(exprs);
+
+//Method for a code conversion
+stringstream Converter::ConvertInner(string in){
+    stringstream stream;
+    vector<string> tokens = parse(in, ";");
+
+    for(int i = 0; i < tokens.size(); i++){
+        expressionObj* expr = ConvertExpr(tokens[i]);
+        stream << expr->produce();
+                                                    //TODO: delete expr;
+    }
 
     return stream;
 }

@@ -12,9 +12,11 @@ using namespace std;
 
 enum class ioType {input, output};
 
-enum class exprType {varExpr, nullExpr, ioExpr, /*TO be finished:*/ initExpr, mathExpr, logicExpr, cicleExpr,
+enum class exprType {varExpr, nullExpr, ioExpr, initExpr, mathExpr, logicExpr, /*TO be finished:*/  cicleExpr,
                       ifExpr, methodExpr, /*?*/ methodInvokeExpr};
 typedef pair<string, exprType> p;
+
+static vector<string> parse(string in, string separators);
 
 class unhandledExprException : exception{
 public:
@@ -58,16 +60,55 @@ public:
     string produce();
 };
 
+//Class for initializing variables
+class initExpression : public expressionObj{
+    string left;
+    expressionObj *right;
+public:
+    initExpression(string in);
+    string produce();
+};
+
+//Class for math calculations
+class mathExpression : public expressionObj{
+    string equation;
+public:
+    mathExpression(string in);
+    string produce();
+};
+
+//Class for logic calculations
+class logicExpression : public expressionObj{
+    string equation;
+    static vector<pair<string, string>> logToLog;
+public:
+    logicExpression(string in);
+    string produce();
+};
+
+//Class for blocks of code
+class codeBlockExpression : public expressionObj{ //Inherits expressionObj because can be met by itself
+    vector<expressionObj*> exprs;
+public:
+    codeBlockExpression(); //RETURNS THE RIGHT TYPE OF EXPRESSION WITH A CODE BLOCK
+    codeBlockExpression(string in);
+    codeBlockExpression(expressionObj*);
+    codeBlockExpression(vector<expressionObj*>);
+    string produce();
+};
+
 //HUGE class for identifying expressions
 class Converter{
     static map<string, exprType> keyWords;
+    static vector<string> types;
 public:
     static bool isTrash(string in);
     static bool isIO(string in);
 
     static expressionObj *ConvertExpr(string in);
     static stringstream transformExprsToStr(vector<expressionObj*> &v);
-    static stringstream Convert(string in);
+    static stringstream ConvertOuter(string in);
+    static stringstream ConvertInner(string in);
 };
 
 
