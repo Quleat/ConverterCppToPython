@@ -9,24 +9,40 @@
 #include <string.h>
 #include <stdio.h>
 #include <map>
+#include <QDebug>
 
-vector<string> parse(string in, string seps){
+vector<string> types ={
+    "double", "int", "float", "bool", "void", "string",
+    "double*", "int*", "float*", "bool*", "void*", "string*",
+    "const"
+};
+
+//I HATE THAT I HAVE TO USE C HERE!!!
+vector<string> split(string in, string seps){
+    in+='\0';
+    seps+='\0';
     vector<string> res;
     string cpyForStrTok = in;
 
-    char *delims = new char[seps.size()];
-    strcpy_s(delims, (seps.size()*sizeof(char)), seps.c_str());
-    char *TRASH = NULL;
-    char *token = strtok_s(const_cast<char*>(cpyForStrTok.c_str()), delims, &TRASH);
+    char *delims = new char[seps.length()];
+    char *source = new char[in.length()];
+    strcpy_s(delims, seps.length(), seps.c_str());
+    strcpy_s(source, in.length(), in.c_str());
+    char *TRASH;
+    char *token = strtok_s(source, const_cast<char*>(delims), &TRASH);
+    string newStr;
+    if(token)
+        newStr = token;
 
     while(token != NULL){
-        res.push_back(token);
-        token = strtok_s(NULL, delims, &TRASH);
+       res.push_back(newStr);
+       token = strtok_s(NULL, delims, &TRASH);
+       if(token)
+           newStr = token;
     }
 
-    delete [] delims;
-    delete TRASH;
-    delete token;
+    delete []source;
+    delete []delims;
 
     return res;
 }
@@ -104,7 +120,12 @@ string ioExpression::produce(){
 
 
 //<initExpression>
-initExpression::initExpression(string in){
+initConvExpression::initConvExpression(string in){
+    if(in.find('=') != string::npos)
+        typeConv = false;
+    else
+        typeConv = true;
+
     size_t begOfName = in.find(' ') + 1;
     left = in.substr(begOfName, in.find('=') - begOfName);
     string r = in.substr(in.find('=')+1);
@@ -112,7 +133,7 @@ initExpression::initExpression(string in){
     Converter converter;
     right = converter.ConvertExpr(r);
 }
-string initExpression::produce(){
+string initConvExpression::produce(){
     string res = left + "=" + right->produce();
     return res;
 }
@@ -161,9 +182,72 @@ string logicExpression::produce(){
 
 
 
+//<methodExpression>
+methodExpression::methodExpression(size_t index, string &in){
+    if(index == string::npos)
+        throw emptyExprException();
+
+    auto codeBlockIndex = in.find('{', index) + 1;
+    string rawPrototype = in.substr(index, codeBlockIndex - index - 1);
+    vector<string> words = split(rawPrototype, " ()\n\0");
+    for(int i = 0; i < words.size(); i++){
+        if(std::find(types.begin(), types.end(), words[i]) != types.end()){
+            words.erase(words.begin() + i);
+            i--;
+        }
+    }
+    prototype = "def " + words[0] + "(";
+    for(int i = 1; i < words.size(); i++){
+        prototype += words[i];
+        if(i + 1 < words.size())
+            prototype += ", ";
+    }
+    prototype += "):";
+
+    int innerBlocksCount = 0;
+    for(auto i = codeBlockIndex; i < in.size(); i++){
+        if(in[i] == '{'){
+            innerBlocksCount++;
+            continue;
+        }
+        else if(in[i] == '}'){
+            if(!innerBlocksCount--){
+                endIndex = i;
+                break;
+            }
+        }
+    }
+
+    Converter converter;
+
+    string codeBlockSource = in.substr(codeBlockIndex, endIndex-codeBlockIndex);
+    exprs = converter.ConvertInner(codeBlockSource);
+}
+string methodExpression::produce(){
+    stringstream out;
+    out << prototype << '\n';
+    for(int i = 0; i < exprs.size(); i++){
+        string test = exprs[i]->produce();
+
+        out << '\t' << exprs[i]->produce() << '\n';
+    }
+    return out.str();
+}
+size_t methodExpression::getEnd(){
+    return endIndex;
+}
+//END<methodExpression>
+
+
+
 //<Converter>
 map<string, exprType> Converter::keyWords = {
-    {"=", exprType::initExpr},
+    {"=", exprType::initConvExpr},      //initExpr also catches explicit type conversions!
+    {"int", exprType::initConvExpr},
+    {"double", exprType::initConvExpr},
+    {"float", exprType::initConvExpr},
+    {"string", exprType::initConvExpr},
+    {"char", exprType::initConvExpr},
 
     {"+", exprType::mathExpr},
     {"-", exprType::mathExpr},
@@ -192,10 +276,7 @@ map<string, exprType> Converter::keyWords = {
     /*TRASH*/
     {"using", exprType::nullExpr},
     {"include", exprType::nullExpr},
-};
-
-vector<string> Converter::types ={
-    "double", "int", "float", "bool", "void", "stirng"
+    {"}", exprType::nullExpr}
 };
 
 //Convert line or a certain string part
@@ -203,24 +284,21 @@ expressionObj *Converter::ConvertExpr(string in){
     if(in.empty())
         return new nullExpression();
 
-    string cpyForStrTok = in;
-    char delims[] = ";() <>#";
-    char *TRASH = NULL;
-    char *token = strtok_s(const_cast<char*>(cpyForStrTok.c_str()), delims, &TRASH);
+    exprType type;
+    vector<string> tokens = split(in, "\n() <>#");
 
-    exprType type = exprType::varExpr;
-    if(token != NULL)
+    if(!tokens.empty())
         type = exprType::varExpr;
     else
         type = exprType::nullExpr;
-    while(token != NULL){
-        string temp = token;
-        if(keyWords.count(temp)){
-            type = keyWords[temp];
+
+    for(int i = 0; i < tokens.size(); i++){
+        if(keyWords.count(tokens[i])){
+            type = keyWords[tokens[i]];
             break;
         }
-        token = strtok_s(NULL, delims, &TRASH);
     }
+
 
     switch(type){
     case exprType::varExpr:
@@ -229,8 +307,8 @@ expressionObj *Converter::ConvertExpr(string in){
         return new nullExpression();
     case exprType::ioExpr:
         return new ioExpression(in);
-    case exprType::initExpr:
-        return new initExpression(in);
+    case exprType::initConvExpr:
+        return new initConvExpression(in);
     case exprType::mathExpr:
         return new mathExpression(in);
     case exprType::logicExpr:
@@ -254,25 +332,41 @@ stringstream Converter::transformExprsToStr(vector<expressionObj*> &exprs){
     return stream;
 }
 
-//Method for converting methods (and everything global in the code)
-stringstream Converter::ConvertOuter(string in ){
-    stringstream stream(in);
+//Method for converting methods (and everything global in the code ((In the future))
+stringstream Converter::TranslateOuter(string in){
+    stringstream stream;
+    auto endIndex = in.rfind('}');
+    size_t curEnd = 0;
+    while(endIndex > curEnd){
+        size_t beginIndex = INT_MAX;
+        for(int i = 1; i < types.size(); i++){
+            auto tempPtr = in.find(types[i], curEnd);
+            beginIndex = min(beginIndex, tempPtr);
+        }
+        //using method init expression
+        methodExpression method(beginIndex, in);
+        stream << method.produce();
+        curEnd = method.getEnd();
+    }
+
+    stream << "if __name__ == \"__main__\":\n"
+                    "\tmain()";
+
     return stream;
 }
 
 
 //Method for a code conversion
-stringstream Converter::ConvertInner(string in){
-    stringstream stream;
-    vector<string> tokens = parse(in, ";");
+vector<expressionObj*> Converter::ConvertInner(string in){
+    vector<expressionObj*> exprs;
+    vector<string> tokens = split(in, ";");
 
     for(int i = 0; i < tokens.size(); i++){
         expressionObj* expr = ConvertExpr(tokens[i]);
-        stream << expr->produce();
-                                                    //TODO: delete expr;
+        exprs.push_back(expr);
     }
 
-    return stream;
+    return exprs;
 }
 //END <Converter>
 

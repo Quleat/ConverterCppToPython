@@ -2,6 +2,7 @@
 #include "./ui_mainwindow.h"
 #include "converterctop.h"
 #include <sstream>
+#include <QDebug>
 
 using namespace std;
 
@@ -23,7 +24,7 @@ void MainWindow::on_pushButton_clicked()
     QString text = ui->textEdit->toPlainText();
     string str = text.toStdString();
     Converter conv;
-    stringstream stream = conv.ConvertInner(str);
+    stringstream stream = conv.TranslateOuter(str);
     QString output(stream.str().c_str());
     ui->textEdit_2->setText(output);
 }

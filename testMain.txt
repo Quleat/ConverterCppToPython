@@ -1,0 +1,13 @@
+#include<iostream>
+using namespace std;
+int main(){
+int var;
+cin >> var;
+}
+int test(){
+bool truest = false && true;
+cout << truest;
+}
+
+
+\s|\(|\)|\[|\]|<|>|\n|\0

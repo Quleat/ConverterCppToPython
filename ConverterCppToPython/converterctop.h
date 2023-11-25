@@ -12,11 +12,11 @@ using namespace std;
 
 enum class ioType {input, output};
 
-enum class exprType {varExpr, nullExpr, ioExpr, initExpr, mathExpr, logicExpr, /*TO be finished:*/  cicleExpr,
+enum class exprType {varExpr, nullExpr, ioExpr, initConvExpr, mathExpr, logicExpr, /*TO be finished:*/  cicleExpr,
                       ifExpr, methodExpr, /*?*/ methodInvokeExpr};
 typedef pair<string, exprType> p;
 
-static vector<string> parse(string in, string separators);
+vector<string> split(string in, string separators);
 
 class unhandledExprException : exception{
 public:
@@ -61,11 +61,12 @@ public:
 };
 
 //Class for initializing variables
-class initExpression : public expressionObj{
+class initConvExpression : public expressionObj{
     string left;
     expressionObj *right;
+    bool typeConv = false;
 public:
-    initExpression(string in);
+    initConvExpression(string in);
     string produce();
 };
 
@@ -97,18 +98,25 @@ public:
     string produce();
 };
 
+//Class for initializing methods
+class methodExpression : public expressionObj{
+    vector<expressionObj*> exprs;
+    string prototype;
+    size_t endIndex = -1;
+public:
+    methodExpression(size_t index, string &in); //Because we cannot know where the method ends, until analyzing what's inside
+    size_t getEnd();
+    string produce();
+};
+
 //HUGE class for identifying expressions
 class Converter{
     static map<string, exprType> keyWords;
-    static vector<string> types;
 public:
-    static bool isTrash(string in);
-    static bool isIO(string in);
-
     static expressionObj *ConvertExpr(string in);
     static stringstream transformExprsToStr(vector<expressionObj*> &v);
-    static stringstream ConvertOuter(string in);
-    static stringstream ConvertInner(string in);
+    static stringstream TranslateOuter(string in);
+    static vector<expressionObj*> ConvertInner(string in);
 };
 
 
