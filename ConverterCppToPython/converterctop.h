@@ -61,12 +61,20 @@ public:
 };
 
 //Class for initializing variables
-class initConvExpression : public expressionObj{
+class initComponent : public expressionObj{
     string left;
-    expressionObj *right;
-    bool typeConv = false;
+    expressionObj *right = NULL;
+    bool empty = true;
 public:
-    initConvExpression(string in);
+    initComponent(string in);
+    string produce();
+};
+
+class initExpression : public expressionObj{
+    vector<initComponent*> inits;
+    string type = "NOT FOUND";
+public:
+    initExpression(string in);
     string produce();
 };
 
@@ -87,14 +95,11 @@ public:
     string produce();
 };
 
-//Class for blocks of code
-class codeBlockExpression : public expressionObj{ //Inherits expressionObj because can be met by itself
-    vector<expressionObj*> exprs;
+//Class for explicit type conversions
+class typeConversionExpression : public expressionObj{
+    string name;
 public:
-    codeBlockExpression(); //RETURNS THE RIGHT TYPE OF EXPRESSION WITH A CODE BLOCK
-    codeBlockExpression(string in);
-    codeBlockExpression(expressionObj*);
-    codeBlockExpression(vector<expressionObj*>);
+    typeConversionExpression(string in);
     string produce();
 };
 

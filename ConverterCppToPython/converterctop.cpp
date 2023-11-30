@@ -10,14 +10,21 @@
 #include <stdio.h>
 #include <map>
 #include <QDebug>
+#include <set>
 
 vector<string> types ={
     "double", "int", "float", "bool", "void", "string",
     "double*", "int*", "float*", "bool*", "void*", "string*",
     "const"
 };
+map<string, string> varTypes  = {
+
+};
 
 //I HATE THAT I HAVE TO USE C HERE!!!
+vector<string> split(string in){
+    return split(in, "() \n\t[]<>\0#");
+}
 vector<string> split(string in, string seps){
     in+='\0';
     seps+='\0';
@@ -94,9 +101,9 @@ ioExpression::ioExpression(string input){
     string subExpr;
     if(input.find("cin") != string::npos){
         method = "input";
-        subExpr = input.substr(input.find(">>")+3); //TODO: make multiple arguments for out
+        subExpr = input.substr(input.find(">>")+3);
     }
-    else if(input.find("cout") != string::npos){    //TODO: method may be empty!!
+    else if(input.find("cout") != string::npos){            //TODO: method may be empty!!
         method = "output";
         subExpr = input.substr(input.find("<<")+3);
     }
@@ -106,13 +113,25 @@ ioExpression::ioExpression(string input){
 string ioExpression::produce(){
     stringstream result;
     if(method == "input"){
-        result << "input(";
+        string rightPart = object->produce();
+        if(varTypes.count(rightPart)){
+           string type = varTypes[rightPart];
+           if(type == "int"){
+               result << object->produce() << " = int(input())";
+           }
+           else if(type == "float"){
+               result << object->produce() << " = float(input())";
+           }
+        }
+        else
+            result << object->produce() << " = input()";
     }
-    else
+    else{
         result << "print(";
-    if(object != nullptr)
-        result << object->produce();
-    result << ")";
+        if(object != nullptr)
+            result << object->produce();
+        result << ")";
+    }
     return result.str();
 }
 //END<ioExpression>
@@ -120,44 +139,140 @@ string ioExpression::produce(){
 
 
 //<initExpression>
-initConvExpression::initConvExpression(string in){
-    if(in.find('=') != string::npos)
-        typeConv = false;
-    else
-        typeConv = true;
+initComponent::initComponent(string in){
+    size_t equalIndex = in.find('=');
+    string leftPart = in.substr(0, equalIndex);
+    vector<string> words = split(leftPart);
+    string type = "NOT FOUND";
+    for(int i = 0; i < words.size(); i++){
+        if(std::find(types.begin(), types.end(), words[i]) == types.end()){
+           left = words[i];
+        }
+        else{
+            if(words[i] != "const"){
+                if(type == "NOT FOUND")
+                    type = words[i];
+                else
+                    break;
+            }
+        }
+    }
 
-    size_t begOfName = in.find(' ') + 1;
-    left = in.substr(begOfName, in.find('=') - begOfName);
-    string r = in.substr(in.find('=')+1);
+    varTypes.insert(std::make_pair(left, type));
 
-    Converter converter;
-    right = converter.ConvertExpr(r);
+    if(equalIndex != string::npos){
+        empty = false;
+        string r = in.substr(equalIndex+1);
+
+        Converter converter;
+        right = converter.ConvertExpr(r);
+    }
 }
-string initConvExpression::produce(){
-    string res = left + "=" + right->produce();
-    return res;
+string initComponent::produce(){
+    if(!empty){
+        string res = left;
+        res += " = " + right->produce();
+        return res;
+    }else
+        return "";
+}
+//END<initExpression>
+
+
+//<initExpression>
+initExpression::initExpression(string in){
+    vector<string> exprs = split(in, ",");
+    vector<string> words = split(exprs[0], " ");
+    for(int i = 0; i < exprs.size(); i++){  //TO DEDUCE THE TYPE OF THE VARIABLE
+        if(std::find(types.begin(), types.end(), words[i]) != types.end())
+            if(words[i] != "const"){
+                if(type == "NOT FOUND")
+                    type = words[i];
+                else
+                    break;
+        }
+    }
+    for(int i = 0; i < exprs.size(); i++){
+        string temp = exprs[i];
+        if(i)
+            temp = type + exprs[i];
+        initComponent *init = new initComponent(temp);
+        inits.push_back(init);
+    }
+}
+string initExpression::produce(){
+    stringstream stream;
+    for(int i = 0; i < inits.size();i++){
+        string exprStr = inits[i]->produce();
+        stream << exprStr;
+        if((i + 1) < inits.size() && !exprStr.empty())
+            stream << "\n";
+    }
+    return stream.str();
 }
 //END<initExpression>
 
 
 
+set<string> mathOps = {
+    "+", "-", "*", "/", "%", "++", "--"
+};
 //<mathExpression>
 mathExpression::mathExpression(string in) : equation(in)
-{ }
+{
+    /*auto ptr = in.find("++");
+
+    while(ptr != string::npos){
+        size_t leftVarBegin = INT_MAX;
+
+        for(size_t z = ptr, tempLeft = 0; z >= 0; z--, tempLeft++){
+            if(in[z] == ' ' || ((in[z] > '0') && (in[z] < '9')))
+                continue;
+            else{
+                leftVarBegin = tempLeft;
+                break;
+            }
+        }
+
+        size_t rightVarBegin = INT_MAX;
+
+        for(size_t z = ptr, tempRight = 0; z >= 0; z++, tempRight++){
+            if(in[z] == ' ' || ((in[z] > '0') && (in[z] < '9')))
+                continue;
+            else{
+                leftVarBegin = tempRight;
+                break;
+            }
+        }
+
+        if(leftVarBegin > rightVarBegin){
+
+        }
+
+    }
+    */
+}
 string mathExpression::produce(){
     return equation;
 }
 //END<math<Expression>
 
-vector<pair<string, string>> logicExpression::logToLog={
+
+
+//<logicExpression>
+vector<pair<string, string>> logicExpression::logToLog={        //Could make it map
     {"false", "False"},
     {"true", "True"},
     {"&&", "and"},
     {"||", "or"},
     {"!", "not"},
-    {"^", "^"}
+    {"^", "^"},
+    {">=", ">="},
+    {"<=", "<="},
+    {"==", "=="},
+    {"<", "<"},
+    {">", ">"}
 };
-//<logicExpression>
 logicExpression::logicExpression(string in){
     for(int i = 0; i < logToLog.size(); i++){
         size_t index = in.find(logToLog[i].first);
@@ -172,13 +287,24 @@ logicExpression::logicExpression(string in){
 string logicExpression::produce(){
     return equation;
 }
-//END<logicExpresssion
+//END<logicExpresssion>
 
 
 
-//<codeBlock>
-
-//end<codeBlock>
+//<typeConversionExpression>
+typeConversionExpression::typeConversionExpression(string in){
+    vector<string> words = split(in);
+    for(int i = 0; i < words.size(); i++){
+        if(std::find(types.begin(), types.end(), words[i]) == types.end()){
+            name = words[i];
+            break;
+        }
+    }
+}
+string typeConversionExpression::produce(){
+    return name;                                //CHECK IF NEED TO PUT HERE \n
+}
+//End<typeConversionExpression>
 
 
 
@@ -189,7 +315,7 @@ methodExpression::methodExpression(size_t index, string &in){
 
     auto codeBlockIndex = in.find('{', index) + 1;
     string rawPrototype = in.substr(index, codeBlockIndex - index - 1);
-    vector<string> words = split(rawPrototype, " ()\n\0");
+    vector<string> words = split(rawPrototype);
     for(int i = 0; i < words.size(); i++){
         if(std::find(types.begin(), types.end(), words[i]) != types.end()){
             words.erase(words.begin() + i);
@@ -227,9 +353,9 @@ string methodExpression::produce(){
     stringstream out;
     out << prototype << '\n';
     for(int i = 0; i < exprs.size(); i++){
-        string test = exprs[i]->produce();
-
-        out << '\t' << exprs[i]->produce() << '\n';
+        string input = exprs[i]->produce();
+        if(!input.empty())
+            out << '\t' << exprs[i]->produce() << '\n';
     }
     return out.str();
 }
@@ -249,6 +375,8 @@ map<string, exprType> Converter::keyWords = {
     {"string", exprType::initConvExpr},
     {"char", exprType::initConvExpr},
 
+    {"++", exprType::mathExpr},
+    {"--", exprType::mathExpr},
     {"+", exprType::mathExpr},
     {"-", exprType::mathExpr},
     {"*", exprType::mathExpr},
@@ -266,6 +394,11 @@ map<string, exprType> Converter::keyWords = {
     {"||", exprType::logicExpr},
     {"!", exprType::logicExpr},
     {"^", exprType::logicExpr},
+    {">=", exprType::logicExpr},
+    {"<=", exprType::logicExpr},
+    {"==", exprType::logicExpr},
+    {"<", exprType::logicExpr},
+    {">", exprType::logicExpr},
 
     {"for", exprType::cicleExpr},
     {"while", exprType::cicleExpr},
@@ -285,7 +418,7 @@ expressionObj *Converter::ConvertExpr(string in){
         return new nullExpression();
 
     exprType type;
-    vector<string> tokens = split(in, "\n() <>#");
+    vector<string> tokens = split(in);
 
     if(!tokens.empty())
         type = exprType::varExpr;
@@ -308,7 +441,7 @@ expressionObj *Converter::ConvertExpr(string in){
     case exprType::ioExpr:
         return new ioExpression(in);
     case exprType::initConvExpr:
-        return new initConvExpression(in);
+        return new initExpression(in);
     case exprType::mathExpr:
         return new mathExpression(in);
     case exprType::logicExpr:

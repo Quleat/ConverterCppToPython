@@ -1,12 +1,15 @@
 #include<iostream>
 using namespace std;
 int main(){
-int var;
-cin >> var;
+	int a = 4, b = 5;
+	const int c = 3;
+	cin >> a;
+	cin >> b;
+	cout << a + b + c;
 }
-int test(){
-bool truest = false && true;
-cout << truest;
+	int test(){
+	bool truest = false && true;
+	cout << truest;
 }
 
 
