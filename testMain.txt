@@ -1,11 +1,17 @@
 #include<iostream>
 using namespace std;
 int main(){
-	int a = 4, b = 5;
-	const int c = 3;
+	int a = 3;
 	cin >> a;
-	cin >> b;
-	cout << a + b + c;
+	if(a == 6){
+		cout << "Now it's six";
+	}
+	else if(a == 5){
+		cout << "Now it's five!";
+	}
+	else{
+		cout << "I don't know what is it";
+		}
 }
 	int test(){
 	bool truest = false && true;
@@ -13,4 +19,80 @@ int main(){
 }
 
 
+#include<iostream>
+using namespace std;
+int main(){
+	int a = 3;
+	cin >> a;
+	cout << "Now it's six";
+	
+}
+
+
 \s|\(|\)|\[|\]|<|>|\n|\0
+
+//THINGS TO DO:
+BUGS:
+	Слитное написание логический операций с переменными ломает их :(
+	Есть редкий баг, когда true на конце большого выражения не трансформируется
+	Совместное исползование логический и математических операций
+	
+Required features:
+	file input/output
+	Catching exceptions
+	
+NotRequired features:
+	make argument in methods in ifExpression - const 
+	
+After:
+	postfix/prefix increment/decrement
+	cicles
+	
+	
+	
+	
+	vector<expressionObj *> Converter::ConvertExpr(string in){
+    if(in.empty())
+        return {new nullExpression()};
+
+    exprType type;
+    vector<expressionObj*> exprs;
+    vector<string> rawTokens = split(in, ";");
+    size_t globalIndex = 0;
+    for(int i = 0; i < rawTokens.size(); i++){
+        globalIndex += in.size() + 1;
+        vector<string> tokens = split(in);
+
+        if(!tokens.empty())
+            type = exprType::varExpr;
+        else
+            type = exprType::nullExpr;
+
+        for(int i = 0; i < tokens.size(); i++){
+            if(keyWords.count(tokens[i])){
+                type = keyWords[tokens[i]];
+                break;
+            }
+        }
+
+        switch(type){
+        case exprType::varExpr:
+            exprs.push_back( new varExpression(in)); break;
+        case exprType::nullExpr:
+            exprs.push_back( new nullExpression()); break;
+        case exprType::ioExpr:
+            exprs.push_back(new ioExpression(in)); break;
+        case exprType::initExpr:
+            exprs.push_back(new initExpression(in)); break;
+        case exprType::mathExpr:
+            exprs.push_back(new mathExpression(in)); break;
+        case exprType::logicExpr:
+            exprs.push_back(new logicExpression(in)); break;
+        case exprType::ifExpr:
+            exprs.push_back(new ifExpression(globalIndex, in)); break;
+        default:
+            throw unhandledExprException();
+        }
+    //it never reaches this point anyway
+    }
+}
