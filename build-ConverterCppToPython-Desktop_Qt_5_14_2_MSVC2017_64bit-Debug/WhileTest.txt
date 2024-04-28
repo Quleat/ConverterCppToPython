@@ -1,0 +1,11 @@
+#include<iostream>
+using namespace std;
+int main(){
+    cout << "Type in a number:";
+	int num;
+	cin >> num;
+	while(num > 0){
+		cout << num;
+		num--;
+	}
+}

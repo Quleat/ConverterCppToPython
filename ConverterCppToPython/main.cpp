@@ -9,6 +9,9 @@
 #include <iterator>
 #include <regex>
 #include <sstream>
+#include <vector>
+#include <string>
+#include <qDebug>
 
 void loadFile(QString);
 int main(int argc, char *argv[])

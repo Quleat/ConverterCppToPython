@@ -2,32 +2,14 @@
 #define CONVERTERCTOP_CPP
 
 #include "converterctop.h"
-#include <algorithm>
-#include <sstream>
-#include <vector>
-#include <string>
-#include <string.h>
-#include <stdio.h>
-#include <map>
-#include <QDebug>
-#include <set>
 
-
-vector<string> types ={
-    "double", "int", "float", "bool", "void", "string",
-    "double*", "int*", "float*", "bool*", "void*", "string*",
-    "const"
-};
-map<string, string> varTypes  = {
-
-};
-
+using namespace std;
 //I HATE THAT I HAVE TO USE C HERE!!!
 vector<string> special2023EditionSplit(string in){
-    return split(in, "}() \n\t[]<>\0#");
+    return split(in, "}() \n\t[]<>\0");
 }
 vector<string> split(string in){
-    return split(in, "() \n\t[]<>\0#");
+    return split(in, "() \n\t[]<>\0");
 }
 vector<string> split(string in, string seps){
     in+='\0';
@@ -57,96 +39,72 @@ vector<string> split(string in, string seps){
 
     return res;
 }
-size_t findCodeBlockEnd(size_t index, string &in){
-    size_t endIndex = 0;
+size_t findBlockEnd(size_t &index, string &in, char symbolBeg, char symbolEnd){
+    size_t endIndex = index;
     int innerBlocksCount = 0;
-    for(auto i = index; i < in.size(); i++){
-       if(in[i] == '{'){
+    for(; endIndex < in.size(); endIndex++){
+       if(in[endIndex] == symbolBeg){
            innerBlocksCount++;
            continue;
        }
-       else if(in[i] == '}'){
-           if(!innerBlocksCount--){
-               endIndex = i;
+       else if(in[endIndex] == symbolEnd){
+           if(!innerBlocksCount--)
                break;
-           }
        }
     }
     return endIndex;
 }
-
-//<emptyExcpetion>
-const char* emptyExprException::what() const{
-    static const char msg[] = "Empty exception was created!";
-    return msg;
+size_t findCodeBlockEnd(size_t index, string &in){
+    return findBlockEnd(index, in, '{', '}');
 }
+size_t findBraceBlockEnd(size_t index, string &in){
+    return findBlockEnd(index, in, '(', ')');
+}
+
 //<unhandledExprException>
 const char* unhandledExprException::what() const{
     static const char msg[] = "Unhandled expression!!";
     return msg;
 }
+const char* exceedingSymbolsException::what() const{
+    static const char msg[] = "Too many symbols!";
+    return msg;
+}
+
+
+
 //Virtual destructor for expressionObj
 expressionObj::~expressionObj()
 { }
 
 
-//<varExpression>
-varExpression::varExpression(string in){
-    if(in.empty())
-        throw emptyExprException();
-    value = in;
-}
-varExpression::varExpression(const varExpression& right){
-    value = right.value;
-}
-void varExpression::load(string in){
-    value = in;
-}
-vector<string> varExpression::produce(){
-    if(value.find(';') != string::npos){
-        value.erase(value.find(';'));
-    }
-    return {value};
-}
-//end<varExpression>
 
-
-
-//<ioExpression>
-ioExpression::ioExpression(expressionObj *o, string m){
-    if(o == nullptr || m.empty())
-        throw emptyExprException();
-    object = o;
-    method = m;
-}
 ioExpression::ioExpression(string input){
-    if(input.empty())
-        throw emptyExprException();
-
     string subExpr;
     if(input.find("cin") != string::npos){
         method = "input";
         subExpr = input.substr(input.find(">>")+3);
     }
-    else if(input.find("cout") != string::npos){            //TODO: method may be empty!!
+    else if(input.find("cout") != string::npos){
         method = "output";
         subExpr = input.substr(input.find("<<")+3);
     }
     Converter converter;
-    object = converter.ConvertExpr(subExpr);
+    object = converter.ConvertInner(subExpr)[0];
 }
 vector<string> ioExpression::produce(){
     stringstream result;
-    string rightPart = object->produce()[0];
+    vector<string> allLines = object->produce();
+    string rightPart = allLines[0];
     if(method == "input"){
         if(varTypes.count(rightPart)){
-           string type = varTypes[rightPart];
-           if(type == "int"){
-               result << rightPart << " = int(input())";
-           }
-           else if(type == "float"){
-               result << rightPart << " = float(input())";
-           }
+            string type = varTypes[rightPart];
+            if(type == "int"){
+                result << rightPart << " = int(input())";
+            }
+            else if(type == "float"){
+                result << rightPart << " = float(input())";
+            }
         }
         else
             result << rightPart << " = input()";
@@ -158,17 +116,97 @@ vector<string> ioExpression::produce(){
         result << ")";
     }
 
+    vector<string> res = {result.str()};
+    res.insert(res.end(), allLines.begin()+1, allLines.end());
 
-    return {result.str()};
+    return res;
 }
 ioExpression::~ioExpression(){
     delete object;
 }
-//END<ioExpression>
 
 
 
-//<initExpression>
+
+
+void varExpression::tryTrunc(string &in){
+    vector<string> trunc = split(in, " \n\t");
+    if(trunc.size() == 1)
+        value = trunc[0];
+    else
+        value = in;
+}
+varExpression::varExpression(string in){
+    tryTrunc(in);
+}
+varExpression::varExpression(const varExpression& right){
+    value = right.value;
+}
+vector<string> varExpression::produce(){
+    if(value.find(';') != string::npos){
+        value.erase(value.find(';'));
+    }
+    return {value};
+}
+
+
+
+
+
+set<string> mathExpression::mathOps = {
+    "+", "-", "*", "/", "%", "++", "--", "(", ")"
+};
+bool mathExpression::isRvalue(string input){
+    if(input[0] <= '9' && input[0] >= '0')
+        return true;
+    if(mathOps.count(input))
+        return true;
+    return false;
+}
+
+mathExpression::mathExpression(string in) : equation(in)
+{
+    vector<string> items = split(in, " \n\t");
+    for(int i = 0; i < items.size(); i++){
+        if(items[i] == "++" || items[i] == "--"){
+            if(i && isRvalue(items[i - 1])){        //'++num' kind
+                additionalLines.push_back(make_pair(items[i+1], items[i]));
+                if(items[i] == "++")
+                    items[i + 1] = "(" + items[i+1] + " + 1)";
+                else
+                    items[i + 1] = "(" + items[i+1] + " - 1)";
+            }
+            else{                                   //'num++' kind
+                additionalLines.push_back(make_pair(items[i-1], items[i]));
+            }
+            items.erase(items.begin() + i);
+            i--;
+        }
+    }
+
+    //Combine all left items into one equation
+    stringstream stream;
+    for(int i = 0; i < items.size(); i++){
+        stream << items[i] << " ";
+    }
+    equation = stream.str();
+}
+vector<string> mathExpression::produce(){
+    vector<string> allLines;
+    allLines.push_back(equation);
+    //processing additional lines ('a+=1' or 'a-=1' kind)
+    for(int i = 0; i < additionalLines.size(); i++){
+        if(additionalLines[i].second == "++")
+            allLines.push_back(additionalLines[i].first + " += 1");
+        else
+            allLines.push_back(additionalLines[i].first + " -= 1");
+    }
+    return allLines;
+}
+
+
+
+
 initComponent::initComponent(string in){
     size_t equalIndex = in.find('=');
     string leftPart = in.substr(0, equalIndex);
@@ -176,7 +214,7 @@ initComponent::initComponent(string in){
     string type = "NOT FOUND";
     for(int i = 0; i < words.size(); i++){
         if(std::find(types.begin(), types.end(), words[i]) == types.end()){
-           left = words[i];
+            left = words[i];
         }
         else{
             if(words[i] != "const"){
@@ -195,24 +233,28 @@ initComponent::initComponent(string in){
         string r = in.substr(equalIndex+1);
 
         Converter converter;
-        right = converter.ConvertExpr(r);
+        right = converter.ConvertInner(r)[0];
     }
 }
 vector<string> initComponent::produce(){
     if(!empty){
         string res = left;
-        res += " = " + right->produce()[0];
-        return {res};
+        vector<string> allLines = right->produce();
+        res += " = " + allLines[0];
+
+        vector<string> result = {res};
+        result.insert(result.end(), allLines.begin()+1, allLines.end());
+
+        return result;
     }else
         return {""};
 }
 initComponent::~initComponent(){
     delete right;
 }
-//END<initExpression>
 
 
-//<initExpression>
+
 initExpression::initExpression(string in){
     vector<string> exprs = split(in, ",");
     vector<string> words = split(exprs[0], " ");
@@ -223,7 +265,7 @@ initExpression::initExpression(string in){
                     type = words[i];
                 else
                     break;
-        }
+            }
     }
     for(int i = 0; i < exprs.size(); i++){
         string temp = exprs[i];
@@ -236,9 +278,9 @@ initExpression::initExpression(string in){
 vector<string> initExpression::produce(){
     vector<string> resExprs;
     for(int i = 0; i < inits.size();i++){
-        string exprStr = inits[i]->produce()[0];
-        if(!exprStr.empty())
-            resExprs.push_back(exprStr);
+        vector<string> allLines = inits[i]->produce();
+
+        resExprs.insert(resExprs.end(), allLines.begin(), allLines.end());
     }
     return resExprs;
 }
@@ -247,62 +289,84 @@ initExpression::~initExpression(){
         delete item;
     }
 }
-//END<initExpression>
 
 
-//<mathExpression>
-set<string> mathExpression::mathOps = {
-    "+", "-", "*", "/", "%", "++", "--"
-};
-mathExpression::mathExpression(string in) : equation(in)
-{
-    /*auto ptr = in.find("++");
-
-    while(ptr != string::npos){
-        size_t leftVarBegin = INT_MAX;
-
-        for(size_t z = ptr, tempLeft = 0; z >= 0; z--, tempLeft++){
-            if(in[z] == ' ' || ((in[z] > '0') && (in[z] < '9')))
-                continue;
-            else{
-                leftVarBegin = tempLeft;
-                break;
-            }
+string codeBlockExpression::getStrInnerExpression(const size_t &index, string &in, size_t& endInnerExpr){
+    size_t begInnerExpr = 0;
+    bool codeBlock = false;
+    for(auto i = index + 1; i < in.size(); i++){
+        if(in[i] == ' ' || in[i] == '\n' || in[i] == '\t')
+            continue;
+        if(in[i] == '{'){
+            begInnerExpr = i + 1;
+            codeBlock = true;
+            break;
         }
-
-        size_t rightVarBegin = INT_MAX;
-
-        for(size_t z = ptr, tempRight = 0; z >= 0; z++, tempRight++){
-            if(in[z] == ' ' || ((in[z] > '0') && (in[z] < '9')))
-                continue;
-            else{
-                leftVarBegin = tempRight;
-                break;
-            }
+        else{
+            begInnerExpr = index + 1;
+            break;
         }
-
-        if(leftVarBegin > rightVarBegin){
-
-        }
-
     }
-    */
+
+    string strInnerExpr;
+    if(codeBlock){
+        globalEndBraceCOUNT++;
+        endInnerExpr = findCodeBlockEnd(begInnerExpr, in);
+        for(auto i = endInnerExpr; i >= 0; i--){
+            if(in[i] == ';'){
+                endInnerExpr = i + 1;
+                break;
+            }
+        }
+    }
+    else
+        endInnerExpr = in.find(";", begInnerExpr);
+
+    strInnerExpr = in.substr(begInnerExpr, endInnerExpr-begInnerExpr);
+
+    return strInnerExpr;
 }
-vector<string> mathExpression::produce(){
-    return {equation};
+codeBlockExpression::codeBlockExpression(){
+
 }
-//END<math<Expression>
+codeBlockExpression::codeBlockExpression(size_t index, string &in){
+    Converter converter;
+
+    string strCodeBlock;
+    size_t endInnerExpr;
+
+    strCodeBlock = getStrInnerExpression(index, in, endInnerExpr);
+    endPoint = endInnerExpr + 1;
+    innerExprs = converter.ConvertInner(strCodeBlock);
+}
+size_t codeBlockExpression::getEnd(){
+    return endPoint;
+}
+vector<string> codeBlockExpression::produce(){
+    vector<string> res;
+    for(int i = 0; i < innerExprs.size(); i++){
+        vector<string> innerStrs = innerExprs[i]->produce();
+        res.reserve(res.size() + innerStrs.size());
+        res.insert(res.end(), innerStrs.begin(), innerStrs.end());
+    }
+    return res;
+}
+codeBlockExpression::~codeBlockExpression(){
+    for(auto &item : innerExprs){
+        delete item;
+    }
+}
 
 
 
-//<logicExpression>
+
 vector<pair<string, string>> logicExpression::logToLog={        //Could make it map
     {"false", "False"},
     {"true", "True"},
     {"&&", "and"},
     {"||", "or"},
     {"!", "not"},
-};
+    };
 logicExpression::logicExpression(string in){
     for(int i = 0; i < logToLog.size(); i++){
         size_t index = in.find(logToLog[i].first);
@@ -317,31 +381,27 @@ logicExpression::logicExpression(string in){
 vector<string> logicExpression::produce(){
     return {equation};
 }
-//END<logicExpresssion>
 
 
 
-//<typeConversionExpression>
-typeConversionExpression::typeConversionExpression(string in){
-    vector<string> words = split(in);
-    for(int i = 0; i < words.size(); i++){
-        if(std::find(types.begin(), types.end(), words[i]) == types.end()){
-            name = words[i];
-            break;
-        }
+
+keyWordExpression::keyWordExpression(string in){
+    if(in.find("continue") != string::npos){
+        output = "continue";
     }
+    else                                        //Because there are only two cases!
+        output = "break";
 }
-vector<string> typeConversionExpression::produce(){
-    return {name};                                //CHECK IF NEED TO PUT HERE \n
+vector<string> keyWordExpression::produce(){
+    return {output};
 }
-//End<typeConversionExpression>
 
 
 
-//<ifExpression>
-enum class ifExpression::ifTypes {elseIfType, elseType, none};
 
-string ifExpression::getStrCondition(size_t index, string &in, size_t &endCondition){
+enum class ifExprsn::ifTypes {elseIfType, elseType, none};
+
+string ifExprsn::getStrCondition(size_t index, string &in, size_t &endCondition){
     int innerBracketCount = 0;
     size_t begCondition = 0;
     for(auto i = index + 1; i < in.size(); i++){
@@ -360,11 +420,11 @@ string ifExpression::getStrCondition(size_t index, string &in, size_t &endCondit
             }
         }
     }
-    string res = in.substr(begCondition, endCondition - begCondition);      //NEED TESTING
+    string res = in.substr(begCondition, endCondition - begCondition);
     return res;
 }
 
-ifExpression::ifTypes ifExpression::deduceNextComponent(size_t index, string &in){
+ifExprsn::ifTypes ifExprsn::deduceNextComponent(size_t index, string &in){
     ifTypes type = ifTypes::none;
     for(auto i = index; i < in.size(); i++){
         if(in[i] == ' ' || in[i] == '\n' || in[i] == '\t')
@@ -393,35 +453,7 @@ ifExpression::ifTypes ifExpression::deduceNextComponent(size_t index, string &in
     return type;
 }
 
-string ifExpression::getStrInnerExpression(const size_t &index, string &in, size_t& endInnerExpr){
-    size_t begInnerExpr = 0;
-    bool codeBlock = false;
-    for(auto i = index + 1; i < in.size(); i++){
-        if(in[i] == ' ' || in[i] == '\n' || in[i] == '\t')
-            continue;
-        if(in[i] == '{'){
-            begInnerExpr = i + 1;
-            codeBlock = true;
-            break;
-        }
-        else{
-            begInnerExpr = index + 1;
-            break;
-        }
-    }
-
-    string strInnerExpr;
-    if(codeBlock)
-        endInnerExpr = findCodeBlockEnd(begInnerExpr, in);
-    else
-        endInnerExpr = in.find(";", begInnerExpr);
-
-    strInnerExpr = in.substr(begInnerExpr, endInnerExpr-begInnerExpr);
-
-    return strInnerExpr;
-}
-
-void ifExpression::convertElse(size_t index, string &in){
+void ifExprsn::convertElse(size_t index, string &in){
     Converter converter;
 
     size_t endCondition = 0;
@@ -443,7 +475,7 @@ void ifExpression::convertElse(size_t index, string &in){
     endPoint = endInnerExpr+1;
 }
 
-void ifExpression::convertElseIf(size_t index, string &in){
+void ifExprsn::convertElseIf(size_t index, string &in){
     Converter converter;
     size_t endCondition = 0;
     string strCondition = getStrCondition(index, in, endCondition);
@@ -455,32 +487,32 @@ void ifExpression::convertElseIf(size_t index, string &in){
     strCodeBlock = getStrInnerExpression(endCondition, in, endInnerExpr);
 
     vector<expressionObj*> exprs = converter.ConvertInner(strCodeBlock);
-    ifExpression* newElseIf = new ifExpression(cond, exprs);
+    ifExprsn* newElseIf = new ifExprsn(cond, exprs);
     elseIfs.push_back(newElseIf);
 
     convertElseAndIf(endInnerExpr+1, in);
 }
 
-void ifExpression::convertElseAndIf(size_t index, string &in){
+void ifExprsn::convertElseAndIf(size_t index, string &in){
     if(index > in.size())
         return;
 
     ifTypes type = deduceNextComponent(index, in);
 
     switch(type){
-        case ifTypes::elseIfType:
-            convertElseIf(index, in);
-            break;
-        case ifTypes::elseType:
-            convertElse(index, in);
-            break;
-        case ifTypes::none:
-            endPoint = index;
-            return;
+    case ifTypes::elseIfType:
+        convertElseIf(index, in);
+        break;
+    case ifTypes::elseType:
+        convertElse(index, in);
+        break;
+    case ifTypes::none:
+        endPoint = index;
+        return;
     }
 }
 
-ifExpression::ifExpression(size_t index, string& in){
+ifExprsn::ifExprsn(size_t index, string& in){
     Converter converter;
 
     size_t endCondition = 0;
@@ -497,52 +529,51 @@ ifExpression::ifExpression(size_t index, string& in){
     convertElseAndIf(endInnerExpr+1, in);
 }
 
-size_t ifExpression::getEnd(){
-    return endPoint;
-}
-
-string ifExpression::produceAsComponent(){
+string ifExprsn::produceAsComponent(){
     stringstream stream;
 
     stream << "elif " << condition->produce()[0] << ":\n";
     for(int i = 0; i < ifs.size(); i++){
-        string strExpr = ifs[i]->produce()[0];
-        if(!strExpr.empty())
-            stream << "\t" << ifs[i]->produce()[0] << "\n";
+        vector<string> allLines = ifs[i]->produce();
+        if(!allLines.empty())
+            for(int j = 0; j < allLines.size(); j++)
+                stream << "\t" << allLines[j] << "\n";
     }
 
     return stream.str();
 }
 
-vector<string> ifExpression::produce(){
+vector<string> ifExprsn::produce(){
     stringstream stream;
 
     string strCondition = condition->produce()[0];
     stream << "if " << strCondition << " :\n";
 
     for(int i = 0; i < ifs.size(); i++){
-        string strExpr = ifs[i]->produce()[0];
-        if(!strExpr.empty())
-            stream << "\t" << strExpr << "\n";
+        vector<string> allLines = ifs[i]->produce();
+        if(!allLines.empty()){
+            for(int j = 0; j < allLines.size(); j++)
+                stream << "\t" << allLines[j] << "\n";
+        }
     }
 
     for(int i = 0; i < elseIfs.size(); i++){
-        string DEBUG = elseIfs[i]->produceAsComponent();
         stream << elseIfs[i]->produceAsComponent() << "\n";
     }
 
     if(!elses.empty())
         stream << "else:\n";
     for(int i = 0; i < elses.size(); i++){
-        string strExpr = ifs[i]->produce()[0];
-        stream << "\t" << strExpr << "\n";
+        vector<string> allLines = elses[i]->produce();
+        for(int j = 0; j < allLines.size(); j++)
+            stream << "\t" << allLines[j] << "\n";
     }
 
     vector<string> res = split(stream.str(), "\n");
     return res;
 }
 
-ifExpression::~ifExpression(){
+ifExprsn::~ifExprsn(){
     for(auto &item : ifs)
         delete item;
 
@@ -555,23 +586,257 @@ ifExpression::~ifExpression(){
 
     delete condition;
 }
-//END<ifExpression>
 
 
-//<methodExpression>
+
+
+forExprsn::forExprsn(size_t index, string &in){
+    Converter converter;
+
+    //Handling 'A' Part
+    size_t forConditionBeg = in.find("(", index);
+    size_t endAPart = in.find(";", index);
+    string APart = in.substr(forConditionBeg + 1, endAPart - forConditionBeg - 1);
+
+    init = new initExpression(APart);
+
+    //Handling 'B' Part
+    size_t endBPart = in.find(";", endAPart+1);
+    string BPart = in.substr(endAPart+1, endBPart - endAPart - 1);
+
+    check = new logicExpression(BPart);
+
+    //Handling 'C' Part
+    size_t endCPart = findBraceBlockEnd(forConditionBeg+1, in);
+    string CPart = in.substr(endBPart+1, endCPart - endBPart - 1);
+
+    iteration = converter.ConvertInner(CPart)[0];
+
+
+    //Handling inner expressions
+    string strCodeBlock;
+    size_t begStrCodeBlock = endCPart;
+    strCodeBlock = getStrInnerExpression(begStrCodeBlock, in, endPoint);
+
+    //Handling continue's
+    auto ptr = strCodeBlock.find("continue");
+    while(ptr != string::npos){
+        string insertString = CPart +";\n";
+        strCodeBlock.insert(ptr, insertString);
+        ptr = strCodeBlock.find("continue", ptr + insertString.length() + 8);
+    }
+
+    innerExprs = converter.ConvertInner(strCodeBlock);
+}
+vector<string> forExprsn::produce(){
+    vector<string> res;
+
+    //Producing 'A' Part
+    vector<string> initAllLines = init->produce();
+    for(int i = 0; i < initAllLines.size(); i++)
+        res.push_back(initAllLines[i]);
+
+    //Handling 'B' Part, making the head of the cicle
+    string checkLine = "while " + check->produce()[0] + " :";
+    res.push_back(checkLine);
+
+    //Handling the body Part of the cicle
+    for(int i = 0; i < innerExprs.size(); i++){
+        vector<string> allLines = innerExprs[i]->produce();
+        for(int j = 0; j < allLines.size(); j++){
+            res.push_back("\t" + allLines[j]);
+        }
+    }
+
+    //Handling the 'C' Part - iteration
+    vector<string> iterAllLines = iteration->produce();
+    for(int i = 0; i < iterAllLines.size(); i++){
+        res.push_back("\t" + iterAllLines[i]);
+    }
+
+    return res;
+}
+forExprsn::~forExprsn(){
+    delete init;
+    delete check;
+    delete iteration;
+}
+
+
+
+
+void switchExprsn::removeKeyWords(string &in){
+    size_t index = in.find("break");
+    while(index != string::npos){
+        size_t beg = index;
+        for(; beg > 0; beg--){
+            if(in[beg] == ';'){
+                break;
+            }
+        }
+        size_t end = index + 5;
+        for(; end < in.size(); end++){
+            if(in[end] == ' ')
+                continue;
+            else
+                break;
+        }
+
+        in.erase(beg, end-beg);
+        index = in.find("break");
+    }
+}
+switchExprsn::switchExprsn(size_t index, string &in){
+    size_t begVarName = in.find("(", index) + 1;
+    size_t endVarName = in.find(")", index);
+    string varName = in.substr(begVarName, endVarName - begVarName);
+
+    string innerBlocks = getStrInnerExpression(endVarName, in, endPoint);
+    size_t begOfBlock = innerBlocks.find("case");
+    size_t endPointOfBlocks = innerBlocks.size() - 1;
+    while(begOfBlock != endPointOfBlocks){
+        size_t endOfBlock = innerBlocks.find("case", begOfBlock + 8);
+        bool isDefault = false;
+        if(endOfBlock == string::npos){
+            endOfBlock = innerBlocks.find("default", begOfBlock + 8);
+            if(endOfBlock == string::npos){
+                endOfBlock = endPointOfBlocks;
+                isDefault = true;
+            }
+        }
+
+        string innerBlock = innerBlocks.substr(begOfBlock, endOfBlock - begOfBlock);
+
+        //handling the condition
+        size_t endOfCondition = innerBlock.find(":");
+        logicExpression* blockCondition{0};
+        if(!isDefault){
+            string strCondition = innerBlock.substr(5, endOfCondition - 5);
+            blockCondition = new logicExpression(varName + " == " + strCondition);
+        }
+
+        //handling the body of the block
+        string blockBody = innerBlock.substr(endOfCondition, endOfBlock - endOfCondition);
+        removeKeyWords(blockBody);
+        Converter converter;
+        vector<expressionObj*> body = converter.ConvertInner(blockBody);
+
+        if(ifs.empty()){
+            condition = blockCondition;
+            ifs = body;
+        }
+        else if(!isDefault){
+            ifExprsn* newElif = new ifExprsn(blockCondition, body);
+            elseIfs.push_back(newElif);
+        }
+        else
+            elses = body;
+
+        begOfBlock = endOfBlock;
+    }
+}
+
+
+
+whileExprsn::whileExprsn(size_t index, string &in){
+    size_t begOfCondition = in.find("(", index)+1;
+    size_t endOfCondition = findBraceBlockEnd(begOfCondition, in);
+    string strCondition = in.substr(begOfCondition, endOfCondition - begOfCondition);
+    check = new logicExpression(strCondition);
+
+    string strBody = getStrInnerExpression(endOfCondition, in, endPoint);
+    Converter converter;
+    innerExprs = converter.ConvertInner(strBody);
+}
+vector<string> whileExprsn::produce(){
+    vector<string> res;
+
+    res.push_back("while " + check->produce()[0] + " :");
+    for(int i = 0; i < innerExprs.size(); i++){
+        vector<string> allLines = innerExprs[i]->produce();
+        for(int j = 0; j < allLines.size(); j++){
+            res.push_back("\t" + allLines[j]);
+        }
+    }
+    return res;
+}
+whileExprsn::~whileExprsn(){
+    delete check;
+}
+
+methodUseExprsn::methodUseExprsn(string in){
+    //Just for beauty
+    size_t ptr = in.find(' ');
+    while(ptr != string::npos){
+        in.erase(ptr, 1);
+        ptr = in.find(' ');
+    }
+    size_t argBegin = in.find("(") + 1;
+    size_t nameBegin = 0;
+    for(;nameBegin < in.size(); nameBegin++){
+        if(in[nameBegin] == ' ' || in[nameBegin] == '\n' || in[nameBegin] == '\t')
+            continue;
+        else
+            break;
+    }
+    value = in.substr(nameBegin, argBegin-1 - nameBegin);
+    size_t argEnd = in.find(",");
+    if(argEnd == string::npos){
+        argEnd = findBraceBlockEnd(argBegin, in);
+    }
+    Converter converter;
+    size_t argsEnd = findBraceBlockEnd(argBegin, in);
+    do{
+        string strArgs = in.substr(argBegin, argEnd - argBegin);
+        expressionObj* newArg = converter.ConvertInner(strArgs)[0];
+        args.push_back(newArg);
+
+        argBegin = argEnd + 1;
+
+        argEnd = in.find(",", argEnd+1);
+        if(argEnd == string::npos){
+            argEnd = argsEnd;
+        }
+
+    } while(argBegin-1 != argsEnd);
+
+}
+vector<string> methodUseExprsn::produce(){
+    vector<string> res;
+    string mainStr = value + "(";
+    res.push_back(mainStr);
+    for(int i = 0; i < args.size(); i++){
+        if(i)
+            res[0] += ", ";
+
+        vector<string> allLines = args[i]->produce();
+        res[0] += allLines[0];
+        if(allLines.size() > 1)
+            res.insert(res.end(), allLines.begin() + 1, allLines.end());
+    }
+    res[0] += ")";
+    return res;
+}
+
+
+
 methodExpression::methodExpression(size_t index, string &in){
     if(index == string::npos)
-        throw emptyExprException();
+        throw unhandledExprException();
 
     auto codeBlockIndex = in.find('{', index) + 1;
     string rawPrototype = in.substr(index, codeBlockIndex - index - 1);
-    vector<string> words = split(rawPrototype);
+    vector<string> words = split(rawPrototype, "() \n\t,\0,");
     for(int i = 0; i < words.size(); i++){
         if(std::find(types.begin(), types.end(), words[i]) != types.end()){
             words.erase(words.begin() + i);
             i--;
         }
     }
+
+    Converter converter;
+    converter.addKeyWords({words[0], exprType::methodInvokeExpr});
+
     prototype = "def " + words[0] + "(";
     for(int i = 1; i < words.size(); i++){
         prototype += words[i];
@@ -582,19 +847,19 @@ methodExpression::methodExpression(size_t index, string &in){
 
     endIndex = findCodeBlockEnd(codeBlockIndex, in);
 
-    Converter converter;
-
-    string codeBlockSource = in.substr(codeBlockIndex, endIndex-codeBlockIndex);
-    exprs = converter.ConvertInner(codeBlockSource);
+    codeBlockSource = in.substr(codeBlockIndex, endIndex-codeBlockIndex);
 }
 vector<string> methodExpression::produce(){
+    Converter converter;
+    vector<expressionObj *> exprs = converter.ConvertInner(codeBlockSource);
+
     stringstream out;
     out << prototype << '\n';
     for(int i = 0; i < exprs.size(); i++){
-        vector<string> inExprStr = exprs[i]->produce();
+        vector<string> allLines = exprs[i]->produce();
 
-        for(int j = 0; j < inExprStr.size(); j++){
-            string input = inExprStr[j];
+        for(int j = 0; j < allLines.size(); j++){
+            string input = allLines[j];
             if(!input.empty())
                 out << '\t' << input << '\n';
         }
@@ -604,11 +869,6 @@ vector<string> methodExpression::produce(){
 size_t methodExpression::getEnd(){
     return endIndex;
 }
-methodExpression::~methodExpression(){
-    for(auto &item : exprs)
-        delete item;
-}
-//END<methodExpression>
 
 
 
@@ -620,6 +880,7 @@ map<string, exprType> Converter::keyWords = {
     {"float", exprType::initExpr},
     {"string", exprType::initExpr},
     {"char", exprType::initExpr},
+    {"auto", exprType::initExpr},
 
     {"++", exprType::mathExpr},
     {"--", exprType::mathExpr},
@@ -646,11 +907,15 @@ map<string, exprType> Converter::keyWords = {
     {"<", exprType::logicExpr},
     {">", exprType::logicExpr},
 
-    {"for", exprType::cicleExpr},
-    {"while", exprType::cicleExpr},
-    {"do", exprType::cicleExpr},
+    {"for", exprType::forExpr},
+    {"while", exprType::whileExpr},
 
     {"if", exprType::ifExpr},
+
+    {"continue", exprType::keyWordExpr},
+    {"break", exprType::keyWordExpr},
+
+    {"switch", exprType::switchExpr},
 
     /*TRASH*/
     {"using", exprType::nullExpr},
@@ -658,56 +923,77 @@ map<string, exprType> Converter::keyWords = {
     {"}", exprType::nullExpr}
 };
 
-//Convert line or a certain string part
-expressionObj *Converter::ConvertExpr(string in){
-    if(in.empty())
-        return new nullExpression();
+vector<pair<string, exprType>> Converter::keyOps = {
+    {"\"", exprType::varExpr},
+    {"\'", exprType::varExpr},
 
-    exprType type;
-    vector<string> tokens = split(in);
+    {"+", exprType::mathExpr},
+    {"-", exprType::mathExpr},
+    {"*", exprType::mathExpr},
+    {"/", exprType::mathExpr},
+    {"%", exprType::mathExpr},
+    {"++", exprType::mathExpr},
+    {"--", exprType::mathExpr},
 
-    if(!tokens.empty())
-        type = exprType::varExpr;
-    else
-        type = exprType::nullExpr;
+    {"(", exprType::mathExpr},
+    {")", exprType::mathExpr},
 
-    for(int i = 0; i < tokens.size(); i++){
-        if(keyWords.count(tokens[i])){
-            type = keyWords[tokens[i]];
-            break;
-        }
+    {"&&", exprType::logicExpr},
+    {"||", exprType::logicExpr},
+    {"^", exprType::logicExpr},
+
+    {">>", exprType::ioExpr},
+    {"<<", exprType::ioExpr}
+};
+
+//Separates the first occurrence with spaces
+size_t Converter::separateFirst(string &in, size_t off, string what){
+    size_t ptr = in.find(what, off);
+
+    if(ptr == string::npos)
+    { }
+    else if(ptr && in[ptr-1] == what[0] && (what == "+" || what == "-"))                             //Just so we don't serparate '+' in "++"
+    { }
+    else if((ptr + 1) < in.size() && in[ptr + 1] == what[0] && (what == "+" || what == "-"))
+    { }
+    else{
+        in.insert(ptr, " ");
+        in.insert(ptr + what.length() + 1, " ");
     }
-
-    switch(type){
-    case exprType::varExpr:
-        return new varExpression(in);
-    case exprType::nullExpr:
-        return new nullExpression();
-    case exprType::ioExpr:
-        return new ioExpression(in);
-    case exprType::initExpr:
-        return new initExpression(in);
-    case exprType::mathExpr:
-        return new mathExpression(in);
-    case exprType::logicExpr:
-        return new logicExpression(in);
-    default:
-        throw unhandledExprException();
-    }
-    //it never reaches this point anyway
-    return nullptr;
+    return ptr;
 }
 
-//Transforming expressions to strings!
-stringstream Converter::transformExprsToStr(vector<expressionObj*> &exprs){
-    stringstream stream;
-    for(int i = 0; i < exprs.size(); i++){
-        string produced = exprs[i]->produce()[0];
-        if(produced.empty())
-            continue;
-        stream << produced << '\n';
+//Separates all occurrences with spaces
+void Converter::separateAll(string &in, string what){
+    size_t offset = 0;
+    while(offset != string::npos){
+        size_t ptr = separateFirst(in, offset, what);
+        if(ptr == string::npos)
+            break;
+        offset = what.size() + ptr+1;
     }
-    return stream;
+}
+
+//Skips code block expression in "ConvertInner" method
+void Converter::skipCodeBlock(size_t &globalIndex, const vector<string> &rawTokens, int &i, const size_t &endPoint){
+    size_t tempIndex = globalIndex + globalEndBraceCOUNT;
+    int j = i;
+    for(; j < rawTokens.size(); j++){
+        if(endPoint <= tempIndex){
+            i = j-1;
+            globalIndex = endPoint;
+            return;
+        }
+        tempIndex += rawTokens[j].size()+1;
+    }
+
+    i = j;                  //Need this point because sometimes cicle at the end of the string and string doesn't include the end bracket
+    globalIndex = endPoint;
+}
+
+//Adds new keyWords to the 'keyWords'
+void Converter::addKeyWords(pair<string, exprType> p){
+    keyWords.insert(p);
 }
 
 //Method for converting methods
@@ -715,6 +1001,7 @@ stringstream Converter::TranslateOuter(string in){
     stringstream stream;
     auto endIndex = in.rfind('}');
     size_t curEnd = 0;
+    vector<methodExpression> methods;
     while(endIndex > curEnd){
         size_t beginIndex = INT_MAX;
         for(int i = 1; i < types.size(); i++){
@@ -723,28 +1010,34 @@ stringstream Converter::TranslateOuter(string in){
         }
         //using method init expression
         methodExpression method(beginIndex, in);
-        stream << method.produce()[0];
+        methods.push_back(method);
         curEnd = method.getEnd();
+    }
+
+    for(int i = 0; i < methods.size(); i++){
+        stream << methods[i].produce()[0];          //Because there should be output in one string lol
     }
 
     stream << "if __name__ == \"__main__\":\n"
                     "\tmain()";
 
+    globalEndBraceCOUNT = 0;
     return stream;
 }
-
 
 //Method for a code conversion
 vector<expressionObj*> Converter::ConvertInner(string in){
     if(in.empty())
-        return {new nullExpression()};
+        return {0};
 
     exprType type;
     vector<expressionObj*> exprs;
-    vector<string> rawTokens = split(in, ";");
+    vector<string> rawTokens = split(in, ";}");
     size_t globalIndex = 0;
+    SUPERTEST = in;
     for(int i = 0; i < rawTokens.size(); i++){
-        vector<string> tokens = special2023EditionSplit(rawTokens[i]);
+        string line = rawTokens[i];
+        vector<string> tokens = special2023EditionSplit(line);
 
         if(!tokens.empty())
             type = exprType::varExpr;
@@ -758,40 +1051,66 @@ vector<expressionObj*> Converter::ConvertInner(string in){
             }
         }
 
+        //Looking for the operators ;)
+        for(int j = 0; j < keyOps.size(); j++){
+            if(line.find(keyOps[j].first) != string::npos){
+                if(type == exprType::varExpr || type == exprType::nullExpr)
+                    type = keyOps[j].second;
+                if(keyOps[j].second == exprType::varExpr)
+                    break;
+                separateAll(line, keyOps[j].first);
+            }
+        }
+
         switch(type){
         case exprType::varExpr:
-            exprs.push_back( new varExpression(rawTokens[i])); break;
+            exprs.push_back( new varExpression(line)); break;
         case exprType::nullExpr:
-            /*exprs.push_back( new nullExpression());*/ break;
+            break;
         case exprType::ioExpr:
-            exprs.push_back(new ioExpression(rawTokens[i])); break;
+            exprs.push_back(new ioExpression(line)); break;
         case exprType::initExpr:
-            exprs.push_back(new initExpression(rawTokens[i])); break;
+            exprs.push_back(new initExpression(line)); break;
         case exprType::mathExpr:
-            exprs.push_back(new mathExpression(rawTokens[i])); break;
+            exprs.push_back(new mathExpression(line)); break;
         case exprType::logicExpr:
-            exprs.push_back(new logicExpression(rawTokens[i])); break;
+            exprs.push_back(new logicExpression(line)); break;
+        case exprType::keyWordExpr:
+            exprs.push_back(new keyWordExpression(line)); break;
+        case exprType::methodInvokeExpr:
+            exprs.push_back(new methodUseExprsn(line)); break;
         case exprType::ifExpr:{
-            ifExpression* ifExp = new ifExpression(in.find("if", globalIndex), in);
+            ifExprsn* ifExp = new ifExprsn(in.find("if", globalIndex), in);
             exprs.push_back(ifExp);
-            size_t endPoint = ifExp->getEnd();
-            size_t tempIndex = globalIndex;
-            for(int j = i; j < rawTokens.size(); j++){
-                if(endPoint < tempIndex){
-                    i = j - 2;
-                    globalIndex = endPoint - rawTokens[i].size() - 1;
-                    break;
-                }
-                tempIndex += rawTokens[j].size()+1;
-            }
+            skipCodeBlock(globalIndex, rawTokens, i, ifExp->getEnd());
+            continue;
+            break;
+        }
+        case exprType::forExpr:{
+            forExprsn* forExpr = new forExprsn(in.find("for", globalIndex), in);
+            exprs.push_back(forExpr);
+            skipCodeBlock(globalIndex, rawTokens, i, forExpr->getEnd());
+            continue;
+            break;
+        }
+        case exprType::switchExpr:{
+            switchExprsn* switchExpr = new switchExprsn(in.find("switch", globalIndex), in);
+            exprs.push_back(switchExpr);
+            skipCodeBlock(globalIndex, rawTokens, i, switchExpr->getEnd());
+            continue;
+            break;
+        }
+        case exprType::whileExpr:{
+            whileExprsn* whileExpr = new whileExprsn(in.find("while", globalIndex), in);
+            exprs.push_back(whileExpr);
+            skipCodeBlock(globalIndex, rawTokens, i, whileExpr->getEnd());
+            continue;
             break;
         }
         default:
             throw unhandledExprException();
         }
-
         globalIndex += rawTokens[i].size() + 1;
-        //it never reaches this point anyway
     }
 
     return exprs;

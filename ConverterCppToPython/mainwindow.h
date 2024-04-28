@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "converterctop.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -16,12 +17,14 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_pushButton_clicked();
-    void on_pushButton_2_clicked();
     void loadFile(QString path);
     void saveFile(QString path);
 
-    void on_pushButton_3_clicked();
+    void on_openFileButton_clicked();
+
+    void on_saveFileButton_clicked();
+
+    void on_translateButton_clicked();
 
 private:
     Ui::MainWindow *ui;

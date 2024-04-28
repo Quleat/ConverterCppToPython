@@ -1,0 +1,27 @@
+#include<iostream>
+using namespace std;
+int main(){
+	int num = 6, sum = 3;
+	for(int i = 0; i < 15; i++){
+	continue;
+	cout << i;
+	}
+	int a = 3 + ((num++ * --sum));
+	cout << num;
+	cout << sum;
+	cin >> a;
+	if(a == 6)
+		cout << "Now it's six";
+	else
+		cout << "John Wick";
+	if(true && false){
+		cout << "NO";
+		cout << "NO";
+}
+	cout << "THE END";
+	test(true, false);
+}
+	int test(bool ins, bool lol){
+	bool truest = ins && lol;
+	cout << truest;
+}

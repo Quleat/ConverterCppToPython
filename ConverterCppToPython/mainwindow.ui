@@ -14,7 +14,7 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="translateButton">
     <property name="geometry">
      <rect>
       <x>550</x>
@@ -27,7 +27,7 @@
      <string>Translate to Python</string>
     </property>
    </widget>
-   <widget class="QTextEdit" name="textEdit">
+   <widget class="QTextEdit" name="inputBox">
     <property name="geometry">
      <rect>
       <x>20</x>
@@ -37,7 +37,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QTextEdit" name="textEdit_2">
+   <widget class="QTextEdit" name="outputBox">
     <property name="geometry">
      <rect>
       <x>20</x>
@@ -47,7 +47,7 @@
      </rect>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_2">
+   <widget class="QPushButton" name="openFileButton">
     <property name="geometry">
      <rect>
       <x>550</x>
@@ -60,7 +60,7 @@
      <string>open file</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton_3">
+   <widget class="QPushButton" name="saveFileButton">
     <property name="geometry">
      <rect>
       <x>550</x>

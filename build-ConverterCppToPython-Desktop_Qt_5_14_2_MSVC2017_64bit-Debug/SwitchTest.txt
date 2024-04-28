@@ -1,0 +1,16 @@
+#include<iostream>
+using namespace std;
+int main(){
+int num = 5;
+switch(num){
+	case 3:
+		cout << "WOW, it's 3";
+		cout << "\\ncan't belive it still!";
+		break;
+	case 5:
+		cout << "That's a very accurate answer.";
+		break;
+	default:
+		cout << -1;
+}
+}

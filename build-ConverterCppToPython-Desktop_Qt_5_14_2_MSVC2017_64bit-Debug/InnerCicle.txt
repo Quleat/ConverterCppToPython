@@ -1,0 +1,17 @@
+#include<iostream>
+using namespace std;
+int main(){
+    cout << "Enter max limit:";
+    int num;
+    cin >> num;
+    for(int i = 2; i <= num; i++){
+        bool simple = true;
+        for(int j = 2; j < i; j++){
+            if((i % j) == 0)
+                simple = false;
+        }
+        if(simple == true){
+            cout << i;
+        }
+    }
+}

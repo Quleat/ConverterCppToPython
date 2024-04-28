@@ -1,0 +1,10 @@
+# ninja log v5
+5	452	0	CMakeFiles/ConverterCppToPython_autogen	19c791463721ff70
+5	452	0	ConverterCppToPython_autogen/mocs_compilation.cpp	19c791463721ff70
+5	452	0	ConverterCppToPython_autogen/include/ui_mainwindow.h	19c791463721ff70
+5	452	0	C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Release/CMakeFiles/ConverterCppToPython_autogen	19c791463721ff70
+5	452	0	C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Release/ConverterCppToPython_autogen/mocs_compilation.cpp	19c791463721ff70
+5	452	0	C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Release/ConverterCppToPython_autogen/include/ui_mainwindow.h	19c791463721ff70
+453	554	7267064748672682	C:/Projects/Uni/GitHub/ConverterCppToPython/ConverterCppToPython/ConverterCppToPython_ru_RU.ts	17ac38de5ba9f02b
+453	554	7267064748672682	CMakeFiles/ConverterCppToPython_ru_RU.ts_lst_file	17ac38de5ba9f02b
+453	554	7267064748672682	C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Release/CMakeFiles/ConverterCppToPython_ru_RU.ts_lst_file	17ac38de5ba9f02b

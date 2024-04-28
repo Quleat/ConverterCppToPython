@@ -30,7 +30,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="mainwindow.cpp" line="66"/>
+        <location filename="mainwindow.cpp" line="42"/>
         <source>Unable to open file</source>
         <translation type="unfinished"></translation>
     </message>

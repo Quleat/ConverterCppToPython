@@ -1,0 +1,8 @@
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/ConverterCppToPython.dir
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/edit_cache.dir
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/rebuild_cache.dir
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/list_install_components.dir
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/install.dir
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/install/local.dir
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/install/strip.dir
+C:/Projects/Uni/GitHub/ConverterCppToPython/build-ConverterCppToPython-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/CMakeFiles/ConverterCppToPython_autogen.dir
